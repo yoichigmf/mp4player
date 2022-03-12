@@ -24,6 +24,15 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis.core   import QgsMapLayerProxyModel
+
+from qgis.PyQt.QtCore import QDir, Qt, QUrl
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+from qgis.PyQt.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
+        QPushButton, QSizePolicy, QSlider, QStyle, QVBoxLayout, QWidget)
+from qgis.PyQt.QtWidgets import QMainWindow,QWidget, QPushButton, QAction
+from qgis.PyQt.QtGui import QIcon
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -180,6 +189,85 @@ class MP4player:
             self.iface.removeToolBarIcon(action)
 
 
+    def select_layer( self, vlayer ):
+
+
+        self.dlg.dateTimeComboBox.setLayer( vlayer )
+
+
+    def play(self):
+        if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
+            self.mediaPlayer.pause()
+        else:
+            self.mediaPlayer.play()
+
+    def mediaStateChanged(self, state):
+        if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
+            self.playButton.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPause))
+        else:
+            self.playButton.setIcon(
+                    self.style().standardIcon(QStyle.SP_MediaPlay))
+
+    def positionChanged(self, position):
+        self.positionSlider.setValue(position)
+
+    def durationChanged(self, duration):
+        self.positionSlider.setRange(0, duration)
+
+    def setPosition(self, position):
+        self.mediaPlayer.setPosition(position)
+
+    def handleError(self):
+        self.playButton.setEnabled(False)
+        self.errorLabel.setText("Error: " + self.mediaPlayer.errorString())
+
+
+    def initVideo( self ):
+        print( "select ")
+        self.videoWidget = QVideoWidget()
+
+        self.playButton = QPushButton()
+        self.playButton.setEnabled(False)
+        #self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.playButton.clicked.connect(self.play)
+
+        self.positionSlider = QSlider(Qt.Horizontal)
+        self.positionSlider.setRange(0, 0)
+        self.positionSlider.sliderMoved.connect(self.setPosition)
+
+        self.errorLabel = QLabel()
+        self.errorLabel.setSizePolicy(QSizePolicy.Preferred,
+                QSizePolicy.Maximum)
+
+        wid = QWidget(self.dlg.vwidget)
+        #self.dlg.setCentralWidget(wid)
+
+        # Create layouts to place inside widget
+        controlLayout = QHBoxLayout()
+        controlLayout.setContentsMargins(0, 0, 0, 0)
+        controlLayout.addWidget(self.playButton)
+        controlLayout.addWidget(self.positionSlider)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.dlg.vwidget)
+        layout.addLayout(controlLayout)
+        layout.addWidget(self.errorLabel)
+
+        # Set widget to contain window contents
+        wid.setLayout(layout)
+
+        self.mediaPlayer.setVideoOutput(self.dlg.vwidget)
+        self.mediaPlayer.stateChanged.connect(self.mediaStateChanged)
+        self.mediaPlayer.positionChanged.connect(self.positionChanged)
+        self.mediaPlayer.durationChanged.connect(self.durationChanged)
+        self.mediaPlayer.error.connect(self.handleError)
+
+
+
+
+        
+
     def run(self):
         """Run method that performs all the real work"""
 
@@ -188,6 +276,15 @@ class MP4player:
         if self.first_start == True:
             self.first_start = False
             self.dlg = MP4playerDialog()
+            self.dlg.logLayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer)
+
+            self.dlg.logLayerComboBox.layerChanged.connect(self.select_layer)
+
+            self.dlg.mp4LayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer)
+
+            #self.initVideo()
+
+
 
         # show the dialog
         self.dlg.show()
