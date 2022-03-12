@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/MP4player" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
