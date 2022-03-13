@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>762</width>
-    <height>666</height>
+    <height>279</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,8 +16,8 @@
   <widget class="QDialogButtonBox" name="button_box">
    <property name="geometry">
     <rect>
-     <x>320</x>
-     <y>620</y>
+     <x>340</x>
+     <y>220</y>
      <width>341</width>
      <height>32</height>
     </rect>
@@ -29,107 +29,74 @@
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QTabWidget" name="tabWidget">
+  <widget class="QgsMapLayerComboBox" name="logLayerComboBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>20</y>
-     <width>721</width>
-     <height>581</height>
+     <x>30</x>
+     <y>70</y>
+     <width>441</width>
+     <height>27</height>
     </rect>
    </property>
-   <property name="currentIndex">
-    <number>0</number>
+  </widget>
+  <widget class="QgsFieldComboBox" name="dateTimeComboBox">
+   <property name="geometry">
+    <rect>
+     <x>520</x>
+     <y>70</y>
+     <width>160</width>
+     <height>27</height>
+    </rect>
    </property>
-   <widget class="QWidget" name="tab">
-    <attribute name="title">
-     <string>Tab 1</string>
-    </attribute>
-    <widget class="QWidget" name="vwidget" native="true">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>10</y>
-       <width>711</width>
-       <height>501</height>
-      </rect>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QWidget" name="tab2">
-    <attribute name="title">
-     <string>Tab 2</string>
-    </attribute>
-    <widget class="QgsMapLayerComboBox" name="logLayerComboBox">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>40</y>
-       <width>441</width>
-       <height>27</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QgsMapLayerComboBox" name="mp4LayerComboBox">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>110</y>
-       <width>531</width>
-       <height>27</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QgsFieldComboBox" name="dateTimeComboBox">
-     <property name="geometry">
-      <rect>
-       <x>510</x>
-       <y>40</y>
-       <width>160</width>
-       <height>27</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label">
-     <property name="geometry">
-      <rect>
-       <x>40</x>
-       <y>10</y>
-       <width>121</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>GPSログデータ</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_2">
-     <property name="geometry">
-      <rect>
-       <x>510</x>
-       <y>10</y>
-       <width>121</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>時刻フィールド</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_3">
-     <property name="geometry">
-      <rect>
-       <x>40</x>
-       <y>80</y>
-       <width>111</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>動画データレイヤ</string>
-     </property>
-    </widget>
-   </widget>
+  </widget>
+  <widget class="QgsMapLayerComboBox" name="mp4LayerComboBox">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>160</y>
+     <width>531</width>
+     <height>27</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>30</y>
+     <width>121</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>GPSログデータ</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>520</x>
+     <y>30</y>
+     <width>121</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>時刻フィールド</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_3">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>130</y>
+     <width>111</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>動画データレイヤ</string>
+   </property>
   </widget>
  </widget>
  <customwidgets>

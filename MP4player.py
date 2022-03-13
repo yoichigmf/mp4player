@@ -24,7 +24,7 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core   import QgsMapLayerProxyModel
+from qgis.core   import QgsMapLayerProxyModel,QgsProject
 
 from qgis.PyQt.QtCore import QDir, Qt, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
@@ -40,6 +40,7 @@ from .resources import *
 from .MP4player_dialog import MP4playerDialog
 import os.path
 
+from  .videowindow import VideoWindow
 
 class MP4player:
     """QGIS Plugin Implementation."""
@@ -172,13 +173,20 @@ class MP4player:
         icon_path = ':/plugins/MP4player/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Play MP4'),
+            text=self.tr(u'動画再生'),
             callback=self.run,
+            parent=self.iface.mainWindow())
+
+
+        self.add_action(
+            icon_path,
+            text=self.tr(u'設定'),
+            callback=self.runAdm,
             parent=self.iface.mainWindow())
 
         # will be set False in run()
         self.first_start = True
-
+        self.admfirst_start = True
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -265,27 +273,67 @@ class MP4player:
 
 
 
+    def runAdm(self):
+        if self.admfirst_start== True:
+            self.admfirst_start= False   
 
-        
+            self.loglayer = None  
+            self.timefield = None
+            self.mp4layer = None
 
-    def run(self):
-        """Run method that performs all the real work"""
+            proj = QgsProject.instance()
 
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
+            log_id = proj.readEntry("MP4Player",  
+                                            "loglayer_id",
+                                            None)
+
+            #        proj.writeEntry("MP4Player", "loglayer_id", self.loglayer_id)
+            #proj.writeEntry("MP4Player", "timefield", self.timefield)
+            #proj.writeEntry("MP4Player", "mp4layer_id", self.mp4layer_id )
+
+
+            if log_id is not None:
+                print( log_id )
+                self.loglayer_id= log_id[0]
+                self.loglayer = proj.mapLayer(self.loglayer_id)
+
+            mp4_id = proj.readEntry("MP4Player",  
+                                            "mp4layer_id",
+                                            None)
+
+            if mp4_id is not None:
+                print( mp4_id )
+                self.mp4layer_id= mp4_id[0]
+                self.mp4layer  = proj.mapLayer(self.mp4layer_id)       
+
+
+            time_field_l  = proj.readEntry("MP4Player",  
+                                            "timefield",
+                                            None)
+
+            if time_field_l is not None:
+                self.timefield = time_field_l[0]
+
+
             self.dlg = MP4playerDialog()
             self.dlg.logLayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer)
 
             self.dlg.logLayerComboBox.layerChanged.connect(self.select_layer)
 
-            self.dlg.mp4LayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer)
+            self.dlg.mp4LayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer)   
 
-            #self.initVideo()
+        if self.loglayer is not None:
+            self.dlg.logLayerComboBox.setLayer(self.loglayer)
 
+            #self.configdlg.mMapLayerHenjyo.setLayer(self.marklayer )
 
+        if self.timefield  is not None:
+            self.timefield = self.dlg.dateTimeComboBox.setField( self.timefield  )
+            #print(" log1")
 
+        if self.mp4layer is not None:
+            self.dlg.mp4LayerComboBox.setLayer(self.mp4layer) 
+        
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -294,4 +342,51 @@ class MP4player:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            pass
+
+            self.loglayer = self.dlg.logLayerComboBox.currentLayer()
+            self.loglayer_id = self.loglayer.id()
+
+            self.timefield = self.dlg.dateTimeComboBox.currentField()
+
+            self.mp4layer = self.dlg.mp4LayerComboBox.currentLayer()
+
+            self.mp4layer_id = self.mp4layer.id()
+            proj = QgsProject.instance()
+
+            proj.writeEntry("MP4Player", "loglayer_id", self.loglayer_id)
+            proj.writeEntry("MP4Player", "timefield", self.timefield)
+            proj.writeEntry("MP4Player", "mp4layer_id", self.mp4layer_id )
+
+            #print( self.loglayer )
+
+            #print( self.loglayer.id() )
+
+            #pass
+
+
+
+    def run(self):
+        """Run method that performs all the real work"""
+
+        # Create the dialog with elements (after translation) and keep reference
+        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
+        if self.first_start == True:
+            self.first_start = False
+
+            self.vdlg = VideoWindow()
+            self.vdlg.setModel( self )
+
+            self.vdlg.resize(640, 480)
+            #self.initVideo()
+
+
+
+        # show the dialog
+        self.vdlg.show()
+        # Run the dialog event loop
+        #result = self.vdlg.exec_()
+        # See if OK was pressed
+        #if result:
+            # Do something useful here - delete the line containing pass and
+            # substitute with your code.
+        #    pass
