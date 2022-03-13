@@ -25,6 +25,22 @@ class VideoWindow(QMainWindow):
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.playButton.clicked.connect(self.play)
 
+
+        self.volumeslider  =  QSlider(Qt.Horizontal)
+        self.volumeslider.setRange(0,100)
+        #self.volumeslider.setFixedwidth(100)
+        self.volumeslider.setValue(50)
+        self.volumeslider.setEnabled(False)
+        self.volumeslider.sliderMoved.connect(self.setvolume)
+
+
+
+
+        self.soundButton = QPushButton()
+        self.soundButton.setEnabled(False)
+        self.soundButton.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume)) 
+        self.playButton.clicked.connect(self.sound) 
+
         self.positionSlider = QSlider(Qt.Horizontal)
         self.positionSlider.setRange(0, 0)
         self.positionSlider.sliderMoved.connect(self.setPosition)
@@ -33,6 +49,9 @@ class VideoWindow(QMainWindow):
         self.errorLabel.setSizePolicy(QSizePolicy.Preferred,
                 QSizePolicy.Maximum)
 
+
+        self.clickButton = QPushButton()
+        self.clickButton.setText(u'再生動画位置クリック')
         # Create new action
         openAction = QAction(QIcon('open.png'), '&Open', self)        
         openAction.setShortcut('Ctrl+O')
@@ -62,10 +81,24 @@ class VideoWindow(QMainWindow):
         controlLayout.addWidget(self.playButton)
         controlLayout.addWidget(self.positionSlider)
 
+
+        soundLayout = QHBoxLayout()
+        soundLayout.setContentsMargins(0, 0, 0, 0)
+        soundLayout.addWidget(self.soundButton)
+        soundLayout.addWidget( self.volumeslider)
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.setContentsMargins(0, 0, 0, 0)
+        buttonLayout.addWidget(self.clickButton)
+
+
         layout = QVBoxLayout()
         layout.addWidget(videoWidget)
         layout.addLayout(controlLayout)
+        layout.addLayout(soundLayout)
         layout.addWidget(self.errorLabel)
+
+        layout.addLayout(buttonLayout)
 
         # Set widget to contain window contents
         wid.setLayout(layout)
@@ -80,10 +113,26 @@ class VideoWindow(QMainWindow):
         fileName, _ = QFileDialog.getOpenFileName(self, "Open Movie",
                 QDir.homePath())
 
+        self.setFile( fileName )
+
+        self.play()
+
+
+    #    if fileName != '':
+    #        self.mediaPlayer.setMedia(
+    #                QMediaContent(QUrl.fromLocalFile(fileName)))
+    #        self.playButton.setEnabled(True)
+            #self.soundButton.setEnabled(True)
+    #        self.volumeslider.setEnabled(True)
+
+    def setFile(self, fileName ):
         if fileName != '':
             self.mediaPlayer.setMedia(
                     QMediaContent(QUrl.fromLocalFile(fileName)))
             self.playButton.setEnabled(True)
+            #self.soundButton.setEnabled(True)
+            self.volumeslider.setEnabled(True)
+
 
     def setModel( self, model ):
         self.model = model
@@ -96,6 +145,16 @@ class VideoWindow(QMainWindow):
             self.mediaPlayer.pause()
         else:
             self.mediaPlayer.play()
+
+    def sound(self):
+        if self.mediaPlayer.isMuted():
+            print("mute")
+            self.mediaPlayer.setMuted( True )
+            #self.mediaPlayer.pause()
+        else:
+            print("not mute")
+            self.mediaPlayer.setMuted( False )
+            #self.mediaPlayer.play()
 
     def mediaStateChanged(self, state):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
@@ -113,6 +172,9 @@ class VideoWindow(QMainWindow):
 
     def setPosition(self, position):
         self.mediaPlayer.setPosition(position)
+
+    def setvolume(self, volume):
+        self.mediaPlayer.setVolume( volume )
 
     def handleError(self):
         self.playButton.setEnabled(False)
