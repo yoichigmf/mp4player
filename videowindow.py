@@ -66,10 +66,10 @@ class VideoWindow(QMainWindow):
 
         # Create menu bar and add action
         menuBar = self.menuBar()
-        fileMenu = menuBar.addMenu('&File')
+        #fileMenu = menuBar.addMenu('&File')
         #fileMenu.addAction(newAction)
-        fileMenu.addAction(openAction)
-        fileMenu.addAction(exitAction)
+        #fileMenu.addAction(openAction)
+        #fileMenu.addAction(exitAction)
 
         # Create a widget for window contents
         wid = QWidget(self)
@@ -136,6 +136,8 @@ class VideoWindow(QMainWindow):
 
     def setModel( self, model ):
         self.model = model
+        self.clickButton.clicked.connect( self.model.mapToolEdit )
+
 
     def exitCall(self):
         sys.exit(app.exec_())

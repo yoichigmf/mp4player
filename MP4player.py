@@ -24,7 +24,8 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core   import QgsMapLayerProxyModel,QgsProject
+from qgis.core   import QgsMapLayerProxyModel,QgsProject, QgsFeature, QgsPointXY
+from qgis.gui  import QgsMapToolEmitPoint, QgsMapToolIdentifyFeature
 
 from qgis.PyQt.QtCore import QDir, Qt, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
@@ -76,6 +77,25 @@ class MP4player:
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
+
+
+
+        self.canvas = iface.mapCanvas()
+
+
+        self.mapToolIdent = QgsMapToolIdentifyFeature(self.canvas)
+        #self.mapToolIdent.featureIdentified.connect(self.mapToolFeatureIdentified)
+        #self.mapToolIdent.canvasClicked.connect(self.identmouseClick)
+
+
+        self.toolexec = False
+        self.identtoolexec= False
+        
+        self.loglayer = None  
+        self.timefield = None
+        self.mp4layer = None
+
+
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -203,75 +223,64 @@ class MP4player:
         self.dlg.dateTimeComboBox.setLayer( vlayer )
 
 
-    def play(self):
-        if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
-            self.mediaPlayer.pause()
+
+
+ 
+    def mapToolEdit(self):
+        #print("in edit")
+        if self.identtoolexec:
+            print("out edit")
+            self.recoverIdentMaptool()
+            #self.toolexec = False
+            #self.canvas.setMapTool(self.previousMapTool)  # このツール実行前に戻す
         else:
-            self.mediaPlayer.play()
+            print("in edit")     
+            self.identtoolexec= True
+            self.previousIdentMapTool = self.canvas.mapTool() 
 
-    def mediaStateChanged(self, state):
-        if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
-            self.playButton.setIcon(
-                    self.style().standardIcon(QStyle.SP_MediaPause))
-        else:
-            self.playButton.setIcon(
-                    self.style().standardIcon(QStyle.SP_MediaPlay))
+            #print( "layer " + self.mp4layer.name())
+            #self.iface.setactivelayer
+  
+            self.mapToolIdent.featureIdentified.connect(self.mapToolFeatureIdentified)
 
-    def positionChanged(self, position):
-        self.positionSlider.setValue(position)
-
-    def durationChanged(self, duration):
-        self.positionSlider.setRange(0, duration)
-
-    def setPosition(self, position):
-        self.mediaPlayer.setPosition(position)
-
-    def handleError(self):
-        self.playButton.setEnabled(False)
-        self.errorLabel.setText("Error: " + self.mediaPlayer.errorString())
+            self.mapToolIdent.setLayer(self.mp4layer )
+            #self.maptooIdent.canvasClicked.connect(self.identmouseClick)
+            self.canvas.setMapTool( self.mapToolIdent )
 
 
-    def initVideo( self ):
-        print( "select ")
-        self.videoWidget = QVideoWidget()
+    def  loadlayerinfo( self ):
+        proj = QgsProject.instance()
 
-        self.playButton = QPushButton()
-        self.playButton.setEnabled(False)
-        #self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.playButton.clicked.connect(self.play)
+        log_id = proj.readEntry("MP4Player",  
+                                            "loglayer_id",
+                                            None)
 
-        self.positionSlider = QSlider(Qt.Horizontal)
-        self.positionSlider.setRange(0, 0)
-        self.positionSlider.sliderMoved.connect(self.setPosition)
-
-        self.errorLabel = QLabel()
-        self.errorLabel.setSizePolicy(QSizePolicy.Preferred,
-                QSizePolicy.Maximum)
-
-        wid = QWidget(self.dlg.vwidget)
-        #self.dlg.setCentralWidget(wid)
-
-        # Create layouts to place inside widget
-        controlLayout = QHBoxLayout()
-        controlLayout.setContentsMargins(0, 0, 0, 0)
-        controlLayout.addWidget(self.playButton)
-        controlLayout.addWidget(self.positionSlider)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.dlg.vwidget)
-        layout.addLayout(controlLayout)
-        layout.addWidget(self.errorLabel)
-
-        # Set widget to contain window contents
-        wid.setLayout(layout)
-
-        self.mediaPlayer.setVideoOutput(self.dlg.vwidget)
-        self.mediaPlayer.stateChanged.connect(self.mediaStateChanged)
-        self.mediaPlayer.positionChanged.connect(self.positionChanged)
-        self.mediaPlayer.durationChanged.connect(self.durationChanged)
-        self.mediaPlayer.error.connect(self.handleError)
+            #        proj.writeEntry("MP4Player", "loglayer_id", self.loglayer_id)
+            #proj.writeEntry("MP4Player", "timefield", self.timefield)
+            #proj.writeEntry("MP4Player", "mp4layer_id", self.mp4layer_id )
 
 
+        if log_id is not None:
+            print( log_id )
+            self.loglayer_id= log_id[0]
+            self.loglayer = proj.mapLayer(self.loglayer_id)
+
+        mp4_id = proj.readEntry("MP4Player",  
+                                            "mp4layer_id",
+                                            None)
+
+        if mp4_id is not None:
+                print( mp4_id )
+                self.mp4layer_id= mp4_id[0]
+                self.mp4layer  = proj.mapLayer(self.mp4layer_id)       
+
+
+        time_field_l  = proj.readEntry("MP4Player",  
+                                            "timefield",
+                                            None)
+
+        if time_field_l is not None:
+            self.timefield = time_field_l[0]       
 
     def runAdm(self):
         if self.admfirst_start== True:
@@ -281,38 +290,8 @@ class MP4player:
             self.timefield = None
             self.mp4layer = None
 
-            proj = QgsProject.instance()
-
-            log_id = proj.readEntry("MP4Player",  
-                                            "loglayer_id",
-                                            None)
-
-            #        proj.writeEntry("MP4Player", "loglayer_id", self.loglayer_id)
-            #proj.writeEntry("MP4Player", "timefield", self.timefield)
-            #proj.writeEntry("MP4Player", "mp4layer_id", self.mp4layer_id )
-
-
-            if log_id is not None:
-                print( log_id )
-                self.loglayer_id= log_id[0]
-                self.loglayer = proj.mapLayer(self.loglayer_id)
-
-            mp4_id = proj.readEntry("MP4Player",  
-                                            "mp4layer_id",
-                                            None)
-
-            if mp4_id is not None:
-                print( mp4_id )
-                self.mp4layer_id= mp4_id[0]
-                self.mp4layer  = proj.mapLayer(self.mp4layer_id)       
-
-
-            time_field_l  = proj.readEntry("MP4Player",  
-                                            "timefield",
-                                            None)
-
-            if time_field_l is not None:
-                self.timefield = time_field_l[0]
+            self.loadlayerinfo()
+        
 
 
             self.dlg = MP4playerDialog()
@@ -362,7 +341,45 @@ class MP4player:
             #print( self.loglayer.id() )
 
             #pass
+    def recoverIdentMaptool( self ):
 
+        self.identtoolexec = False
+        self.mapToolIdent.featureIdentified.disconnect(self.mapToolFeatureIdentified)
+        self.canvas.setMapTool(self.previousIdentMapTool )  # このツール実行前に戻す
+
+
+    def mapToolFeatureIdentified(self, feature):
+
+        print("ident in")
+        qfeature = QgsFeature(feature)
+
+
+        
+        print( qfeature)
+
+        tgfname = qfeature["filename"]
+
+        print( tgfname )
+        self.recoverIdentMaptool()
+
+        self.vdlg.setFile( tgfname )
+        self.vdlg.play()
+
+
+    def  identmouseClick(self, currentPos, clickedButton ):
+
+        if clickedButton == QtCore.Qt.LeftButton: 
+            print('左クリック!' + str(QgsPointXY(currentPos)))
+
+            
+            #getmeshID(qgis.core.QgsPointXY(currentPos).y(), qgis.core.QgsPointXY(currentPos).x())
+            self.recoverIdentMaptool()
+
+            #self.insertNewRec(QgsPointXY(currentPos))
+
+        if clickedButton == QtCore.Qt.RightButton:
+            print('右クリック!' + str(QgsPointXY(currentPos)))
+            self.recoverIdentMaptool()        
 
 
     def run(self):
@@ -375,11 +392,11 @@ class MP4player:
 
             self.vdlg = VideoWindow()
             self.vdlg.setModel( self )
-
+            self.vdlg.setWindowFlags(Qt.WindowStaysOnTopHint)
             self.vdlg.resize(640, 480)
             #self.initVideo()
 
-
+        self.loadlayerinfo()
 
         # show the dialog
         self.vdlg.show()
