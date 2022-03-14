@@ -4,7 +4,7 @@
 from PyQt5.QtCore import QDir, Qt, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
+from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,QMessageBox,
         QPushButton, QSizePolicy, QSlider, QStyle, QVBoxLayout, QWidget)
 from PyQt5.QtWidgets import QMainWindow,QWidget, QPushButton, QAction
 from PyQt5.QtGui import QIcon
@@ -12,9 +12,23 @@ import sys
 
 class VideoWindow(QMainWindow):
 
+
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, 'Window Close', u'動画ウィンドウを閉じますか?',
+               QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            event.accept()
+            self.mediaPlayer.pause()
+            print('Window closed')
+        else:
+           
+            event.ignore()	
+
+
     def __init__(self, parent=None):
         super(VideoWindow, self).__init__(parent)
-        self.setWindowTitle("PyQt Video Player Widget Example - pythonprogramminglanguage.com") 
+        self.setWindowTitle(u"位置ログ対応動画再生") 
 
         self.mediaPlayer = QMediaPlayer(None, QMediaPlayer.VideoSurface)
 
@@ -108,6 +122,8 @@ class VideoWindow(QMainWindow):
         self.mediaPlayer.positionChanged.connect(self.positionChanged)
         self.mediaPlayer.durationChanged.connect(self.durationChanged)
         self.mediaPlayer.error.connect(self.handleError)
+
+
 
     def openFile(self):
         fileName, _ = QFileDialog.getOpenFileName(self, "Open Movie",
