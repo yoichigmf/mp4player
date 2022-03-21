@@ -1,8 +1,8 @@
 # PyQt5 Video player
 #!/usr/bin/env python
 
-from PyQt5.QtCore import QDir, Qt, QUrl
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from PyQt5.QtCore import QDir, Qt, QUrl, pyqtSlot
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer,  QVideoFrame, QVideoProbe
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,QMessageBox,
         QPushButton, QSizePolicy, QSlider, QStyle, QVBoxLayout, QWidget)
@@ -10,7 +10,41 @@ from PyQt5.QtWidgets import QMainWindow,QWidget, QPushButton, QAction
 from PyQt5.QtGui import QIcon
 import sys
 
+
+
+class FrameCounterWidget(QLabel):
+
+    def __init__(self, parent=None):
+        super(FrameCounterWidget, self).__init__(parent)
+
+        self.setFixedWidth(20)
+        self.frame_cnt = 0
+        self.setText('0')
+        self.parent = parent
+
+    def reset_framecount( self ):
+        self.frame_cnt = 0
+        self.setText('0')
+
+    @pyqtSlot(QVideoFrame)
+    def processFrame(self, frame):
+        self.frame_cnt = self.frame_cnt + 1
+        self.setText(str(self.frame_cnt))
+
+        if self.parent is not None:
+            self.parent.FramEncr()
+
+        
+
+
 class VideoWindow(QMainWindow):
+
+    def  FramEncr( self ):
+        self.framecount  = self.framecount 
+
+    def FrameReset( self ):
+        self.framecount  = 0
+        self.frameCounter.reset_framecount()
 
 
     def closeEvent(self, event):
@@ -89,6 +123,10 @@ class VideoWindow(QMainWindow):
         wid = QWidget(self)
         self.setCentralWidget(wid)
 
+        self.frameCounter = FrameCounterWidget(self)
+
+        self.FrameReset()
+        
         # Create layouts to place inside widget
         controlLayout = QHBoxLayout()
         controlLayout.setContentsMargins(0, 0, 0, 0)
@@ -104,6 +142,8 @@ class VideoWindow(QMainWindow):
         buttonLayout = QHBoxLayout()
         buttonLayout.setContentsMargins(0, 0, 0, 0)
         buttonLayout.addWidget(self.clickButton)
+        #buttonLayout.addWidget( self.frameCounter  )
+        #buttonLayout.
 
 
         layout = QVBoxLayout()
@@ -122,6 +162,17 @@ class VideoWindow(QMainWindow):
         self.mediaPlayer.positionChanged.connect(self.positionChanged)
         self.mediaPlayer.durationChanged.connect(self.durationChanged)
         self.mediaPlayer.error.connect(self.handleError)
+
+        self.probe = QVideoProbe()
+
+        self.probe.videoFrameProbed.connect( self.frameCounter.processFrame)
+
+        self.probe.setSource(self.mediaPlayer)
+
+
+
+
+
 
 
 
@@ -148,6 +199,7 @@ class VideoWindow(QMainWindow):
             self.playButton.setEnabled(True)
             #self.soundButton.setEnabled(True)
             self.volumeslider.setEnabled(True)
+            self.FrameReset( )
 
 
     def setModel( self, model ):
