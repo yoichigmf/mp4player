@@ -1,7 +1,7 @@
 # PyQt5 Video player
 #!/usr/bin/env python
 
-from PyQt5.QtCore import QDir, Qt, QUrl, pyqtSlot
+from PyQt5.QtCore import QDir, Qt, QUrl, pyqtSlot, QTime
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer,  QVideoFrame, QVideoProbe
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,QMessageBox,
@@ -68,6 +68,12 @@ class VideoWindow(QMainWindow):
 
         videoWidget = QVideoWidget()
 
+        self.Model = None
+
+        self.currentInfo = None
+        self.currentlat = None
+        self.currentlon = None
+
         self.playButton = QPushButton()
         self.playButton.setEnabled(False)
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -82,7 +88,8 @@ class VideoWindow(QMainWindow):
         self.volumeslider.sliderMoved.connect(self.setvolume)
 
 
-
+        self.duration = 0
+        self.labelDuration = QLabel()
 
         self.soundButton = QPushButton()
         self.soundButton.setEnabled(False)
@@ -90,8 +97,17 @@ class VideoWindow(QMainWindow):
         self.playButton.clicked.connect(self.sound) 
 
         self.positionSlider = QSlider(Qt.Horizontal)
-        self.positionSlider.setRange(0, 0)
+        #self.positionSlider.setRange(0, 0)
+
+        self.positionSlider.setRange(0, self.mediaPlayer.duration() / 1000)
         self.positionSlider.sliderMoved.connect(self.setPosition)
+
+              #  self.slider = QSlider(Qt.Horizontal)
+        #self.slider.setRange(0, self.player.duration() / 1000)
+
+
+        self.mediaPlayer.durationChanged.connect(self.durationChanged)
+        self.mediaPlayer.positionChanged.connect(self.positionChanged)
 
         self.errorLabel = QLabel()
         self.errorLabel.setSizePolicy(QSizePolicy.Preferred,
@@ -145,11 +161,18 @@ class VideoWindow(QMainWindow):
         #buttonLayout.addWidget( self.frameCounter  )
         #buttonLayout.
 
+        indLayout = QHBoxLayout()
+        indLayout.setContentsMargins(0, 0, 0, 0)
+        indLayout.addWidget(self.frameCounter)
+
+        indLayout.addWidget(self.labelDuration)
+        
 
         layout = QVBoxLayout()
         layout.addWidget(videoWidget)
         layout.addLayout(controlLayout)
         layout.addLayout(soundLayout)
+        layout.addLayout(indLayout)
         layout.addWidget(self.errorLabel)
 
         layout.addLayout(buttonLayout)
@@ -249,6 +272,66 @@ class VideoWindow(QMainWindow):
     def handleError(self):
         self.playButton.setEnabled(False)
         self.errorLabel.setText("Error: " + self.mediaPlayer.errorString())
+
+
+    #  経過秒数でカーソル表示位置を変える
+    def updatePosition( self, currentInfo, cstr ):
+        #print( cstr )
+        if self.currentInfo is not None:
+            if self.currentInfo == currentInfo:
+                #print("same")
+                return
+
+
+        self.currentInfo = currentInfo
+        print( cstr )
+
+
+    def updateDurationInfo(self, currentInfo):
+        duration = self.duration
+        if currentInfo or duration:
+            currentTime = QTime((currentInfo/3600)%60, (currentInfo/60)%60,
+                    currentInfo%60, (currentInfo*1000)%1000)
+            totalTime = QTime((duration/3600)%60, (duration/60)%60,
+                    duration%60, (duration*1000)%1000);
+
+            format = 'hh:mm:ss' if duration > 3600 else 'mm:ss'
+
+            cstr = currentTime.toString(format) 
+
+            self.updatePosition( currentInfo, cstr )
+
+            tStr = currentTime.toString(format) + " / " + totalTime.toString(format)
+
+            
+            if self.model is not None:
+                self.model.upDateMovePoint(currentTime, cstr )
+            else:
+                print( "model is null")
+
+        else:
+            tStr = ""
+
+        self.labelDuration.setText(tStr)
+
+
+    def durationChanged(self, duration):
+        duration /= 1000
+
+        self.duration = duration
+        self.positionSlider.setMaximum(duration)
+
+        self.currentInfo = None
+        self.currentlat = None
+        self.currentlon = None
+
+    def positionChanged(self, progress):
+        progress /= 1000
+
+        if not self.positionSlider.isSliderDown():
+            self.positionSlider.setValue(progress)
+
+        self.updateDurationInfo(progress)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

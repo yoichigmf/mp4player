@@ -21,11 +21,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
+from tracemalloc import start
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QDateTime
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core   import QgsMapLayerProxyModel,QgsProject, QgsFeature, QgsPointXY
-from qgis.gui  import QgsMapToolEmitPoint, QgsMapToolIdentifyFeature
+from qgis.core   import (QgsMapLayerProxyModel,QgsProject, QgsFeature, QgsPointXY,
+    QgsFieldProxyModel, QgsProcessing,  QgsWkbTypes)
+
+from qgis import processing
+
+from qgis.gui  import QgsMapToolEmitPoint, QgsMapToolIdentifyFeature, QgsVertexMarker
 
 from qgis.PyQt.QtCore import QDir, Qt, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
@@ -43,6 +48,8 @@ import os.path
 
 from  .videowindow import VideoWindow
 
+
+
 class MP4player:
     """QGIS Plugin Implementation."""
 
@@ -54,6 +61,9 @@ class MP4player:
             application at run time.
         :type iface: QgsInterface
         """
+
+        self.debug = True
+
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -78,6 +88,8 @@ class MP4player:
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
 
+        self.Timelist = []
+
 
 
         self.canvas = iface.mapCanvas()
@@ -94,6 +106,21 @@ class MP4player:
         self.loglayer = None  
         self.timefield = None
         self.mp4layer = None
+
+        self.PointLogLayer = None
+
+        self.TimeList = None
+
+        self.StartTime = None
+        self.EndTime = None
+
+        self.lastx = None
+        self.lasty = None
+
+        self.lastPlotTime = None
+        self.ploted = False
+
+        self.last_vertex = None
 
 
 
@@ -299,7 +326,9 @@ class MP4player:
 
             self.dlg.logLayerComboBox.layerChanged.connect(self.select_layer)
 
-            self.dlg.mp4LayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer)   
+            self.dlg.mp4LayerComboBox.setFilters(QgsMapLayerProxyModel.PointLayer) 
+
+            self.dlg.dateTimeComboBox.setFilters(QgsFieldProxyModel.DateTime) 
 
         if self.loglayer is not None:
             self.dlg.logLayerComboBox.setLayer(self.loglayer)
@@ -355,15 +384,213 @@ class MP4player:
 
 
         
-        print( qfeature)
+        #print( qfeature)
 
         tgfname = qfeature["filename"]
 
         print( tgfname )
+
+        self.playfilename = tgfname
+
+        self.starttime = qfeature["filetime"]
+        self.logtime =   qfeature["logtime"]
+        self.vsec  =  qfeature["vsec"]
+
+        self.framecount = qfeature["frame_count"]
+        self.fps = qfeature["fps"]
+
+
+
         self.recoverIdentMaptool()
 
+
+        fmt ="yyyy-MM-dd HH:mm:ss"
+
+        startTime  = QDateTime.fromString(self.starttime , fmt )
+
+        ofmt = "yyyy/MM/dd HH:mm:ss"
+        start_str = startTime.toString(ofmt)
+
+        endTime = startTime.addSecs( self.vsec )
+
+        end_str  = endTime.toString(ofmt)
+
+        print("start "+ start_str)
+        print("end "+ end_str)
+
+     
+
+
+
         self.vdlg.setFile( tgfname )
+
+        self.SetPointLog( startTime, endTime)
+
+
         self.vdlg.play()
+
+
+    #  経過時刻で移動ポイントを更新する
+    def  upDateMovePoint( self, ctinfo, ctstr ):
+
+        print( "upfdate =" + ctstr )
+
+        ctime = self.StartTime.addMSecs( ctinfo.msecsSinceStartOfDay() )
+        ofmt = "yyyy/MM/dd HH:mm:ss"
+        ntime = ctime.toString( ofmt )
+        print( "now =" + ntime )
+
+        #  前回のプロット時刻と同じ時刻の場合処理しない
+        if self.lastPlotTime is not None:
+            if ctime == self.lastPlotTime:
+                return
+
+        # 一番時刻がちかい点を探す
+        prec = self.SerchNealistTimeRec( ctime )
+
+        if  prec is None:
+            return
+
+        print( "find = " + prec["time"].toString(ofmt) + " x " + str(prec["x"]) + " y " + str(prec["y"])) 
+
+        self.lastPlotTime = prec["time"]
+        self.ploted = True
+        self.lastx = prec["x"]
+        self.lasty = prec["y"]
+
+        if self.last_vertex is not None:
+                self.iface.mapCanvas().scene().removeItem(self.last_vertex  )
+
+        self.last_vertex = QgsVertexMarker(self.iface.mapCanvas())
+        self.last_vertex.setCenter(QgsPointXY(self.lastx,self.lasty))
+
+
+        
+    def SerchNealistTimeRec( self, ctime ):
+
+        if self.TimeList is None:
+            return None
+
+
+        if  self.EndTime  < self.TimeList[0]["time"]:
+                return
+            
+        tgrec = self.TimeList[0]
+        tdiff = abs( ctime.toMSecsSinceEpoch()  - tgrec["time"].toMSecsSinceEpoch() )
+
+        for  nrec in self.TimeList:
+
+            if  self.EndTime  < nrec["time"]:
+                break
+
+            ndiff = abs( ctime.toMSecsSinceEpoch() - nrec["time"].toMSecsSinceEpoch())
+            if ndiff < tdiff:
+                tdiff = ndiff
+                tgrec = nrec
+
+        return tgrec
+
+    def  SetPointLog( self, starttime, endtime ):
+
+        #print( "set point log")
+
+
+        inputstr = 'C:\\work\\gpx2\\TrackLog_2021_06_11.gpkg|layername=TrackLog_2021_06_11'
+        expstr =  '(\"DateTimeG\" <= to_datetime( \'2021/06/11 01:19:13\', \'yyyy/MM/dd HH:mm:ss\')) and (\"DateTimeG\" >= to_datetime( \'2021/06/11 01:17:50\', \'yyyy/MM/dd HH:mm:ss\'))'
+        expstr =  '\"DateTimeG\" <= to_datetime( \'2021/06/11 01:19:13\', \'yyyy/MM/dd HH:mm:ss\')'
+        # and (\"DateTimeG\" >= to_datetime( \'2021/06/11 01:17:50\', \'yyyy/MM/dd HH:mm:ss\'))'
+
+        #print( inputstr )
+        #print(expstr)
+
+        ofmt = "yyyy/MM/dd HH:mm:ss"
+        ststring = starttime.toString(ofmt)
+
+        #expstr2 =  '\"DateTimeG\" >= to_datetime( \'2021/06/11 01:17:50\', \'yyyy/MM/dd HH:mm:ss\')'
+
+        tgt_field = self.timefield 
+        tglayer = self.loglayer 
+
+        expstr2 =  '\"' + tgt_field + '\" >= to_datetime( \'' + ststring +'\', \'yyyy/MM/dd HH:mm:ss\')'
+
+        result = processing.run("qgis:extractbyexpression", {'INPUT': tglayer,
+              'EXPRESSION': expstr2,
+              'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT})
+        #print( inputstr )
+        print(expstr)
+
+        result1_layer = result['OUTPUT']
+
+        #expstr2 =  '\"DateTimeG\" >= to_datetime( \'2021/06/11 01:17:50\', \'yyyy/MM/dd HH:mm:ss\')'
+
+
+
+        #param2 ={'INPUT': result1_layer,
+        #      'EXPRESSION': expstr,
+        #      'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT}
+        
+        #result2 = processing.run("qgis:extractbyexpression", param2,is_child_algorithm=True)
+
+        self.PointLogLayer = result1_layer
+
+        self.createTimeList( self.PointLogLayer, tgt_field, starttime, endtime )
+
+        self.StartTime = starttime
+        self.EndTime = endtime
+
+
+        #print(result2['OUTPUT'])
+        #QgsProject.instance().addMapLayer(self.PointLogLayer)
+        if self.debug:
+            QgsProject.instance().addMapLayer(result1_layer )
+
+    def  createTimeList( self, tgLayer, tgt_field, starttime, endtime ):
+        
+        retarray = []
+        
+        #print(tgField)
+    
+        #features = source.getFeatures()
+
+        for  feature in tgLayer.getFeatures():
+            tgTime = feature[tgt_field]
+            
+            #print(type(tgTime) )
+              #   型判定
+            #if isinstance(tgTime, str):
+                  #print( tgTime )
+             #     if  tgTime =='0:00:00':
+                         #print("continue")
+              #           continue
+                         
+              #    dt = datetime.datetime.strptime(tgTime, '%Y/%m/%d %H:%M:%S')
+              #    file_update_unix_time = dt.timestamp()
+            #else:
+            
+                  #file_update_unix_time = tgTime.toSecsSinceEpoch()
+                 # dt = datetime.datetime.fromtimestamp(file_update_unix_time)
+            #print(tgTime.toSecsSinceEpoch())
+            #print( dt )
+ 
+            geom = feature.geometry()
+          #  print(QgsWkbTypes.displayString(geom.wkbType()))             マルチポイントとかの場合の対応が必要
+            if geom.wkbType() == QgsWkbTypes.Point or geom.wkbType() == QgsWkbTypes.PointZ or geom.wkbType() == QgsWkbTypes.Point25D  :
+                  #print("point ")
+                  
+                  ptg =  geom.asPoint();
+                  
+                  pt = {"time": tgTime, "x": ptg.x(), "y": ptg.y(), "geom": geom}
+                  
+                  retarray.append( pt );
+            
+        
+            # Stop the algorithm if cancel button has been clicked
+           # if feedback.isCanceled():
+           #     break
+
+        self.TimeList = retarray
+    
+        #return retarray
 
 
     def  identmouseClick(self, currentPos, clickedButton ):
