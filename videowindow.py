@@ -172,7 +172,7 @@ class VideoWindow(QMainWindow):
         layout.addWidget(videoWidget)
         layout.addLayout(controlLayout)
         layout.addLayout(soundLayout)
-        layout.addLayout(indLayout)
+        #layout.addLayout(indLayout)
         layout.addWidget(self.errorLabel)
 
         layout.addLayout(buttonLayout)

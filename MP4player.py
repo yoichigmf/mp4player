@@ -23,10 +23,10 @@
 """
 from tracemalloc import start
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QDateTime
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QColor
 from qgis.PyQt.QtWidgets import QAction
 from qgis.core   import (QgsMapLayerProxyModel,QgsProject, QgsFeature, QgsPointXY,
-    QgsFieldProxyModel, QgsProcessing,  QgsWkbTypes)
+    QgsFieldProxyModel, QgsProcessing,  QgsWkbTypes, QgsFeatureRequest)
 
 from qgis import processing
 
@@ -38,7 +38,7 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from qgis.PyQt.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
         QPushButton, QSizePolicy, QSlider, QStyle, QVBoxLayout, QWidget)
 from qgis.PyQt.QtWidgets import QMainWindow,QWidget, QPushButton, QAction
-from qgis.PyQt.QtGui import QIcon
+
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -462,6 +462,11 @@ class MP4player:
                 self.iface.mapCanvas().scene().removeItem(self.last_vertex  )
 
         self.last_vertex = QgsVertexMarker(self.iface.mapCanvas())
+        self.last_vertex.setIconType(QgsVertexMarker.ICON_CROSS)
+        self.last_vertex.setColor(QColor(255,0, 0)) #(R,G,B)
+        self.last_vertex.setIconSize(20)
+        #self.last_vertex.setIconType(QgsVertexMarker.ICON_X)
+        self.last_vertex.setPenWidth(3)
         self.last_vertex.setCenter(QgsPointXY(self.lastx,self.lasty))
 
 
@@ -541,8 +546,8 @@ class MP4player:
 
         #print(result2['OUTPUT'])
         #QgsProject.instance().addMapLayer(self.PointLogLayer)
-        if self.debug:
-            QgsProject.instance().addMapLayer(result1_layer )
+        #if self.debug:
+            #QgsProject.instance().addMapLayer(result1_layer )
 
     def  createTimeList( self, tgLayer, tgt_field, starttime, endtime ):
         
@@ -552,7 +557,10 @@ class MP4player:
     
         #features = source.getFeatures()
 
-        for  feature in tgLayer.getFeatures():
+        request=QgsFeatureRequest().addOrderBy(tgt_field)
+        
+
+        for  feature in tgLayer.getFeatures(request):
             tgTime = feature[tgt_field]
             
             #print(type(tgTime) )
