@@ -6,7 +6,7 @@
 name=MP4player
 qgisMinimumVersion=3.0
 description=play MP4 movie with gps log
-version=0.1
+version=0.2
 author=Yoichi Kayama/aeroasahi corporation
 email=yoichi.kayama@gmail.com
 
