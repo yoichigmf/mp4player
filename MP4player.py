@@ -26,7 +26,8 @@ from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QDateTime
 from qgis.PyQt.QtGui import QIcon, QColor
 from qgis.PyQt.QtWidgets import QAction
 from qgis.core   import (QgsMapLayerProxyModel,QgsProject, QgsFeature, QgsPointXY,
-    QgsFieldProxyModel, QgsProcessing,  QgsWkbTypes, QgsFeatureRequest)
+    QgsFieldProxyModel, QgsProcessing,  QgsWkbTypes, QgsFeatureRequest, QgsProject,
+    QgsCoordinateReferenceSystem,  QgsCoordinateTransform)
 
 from qgis import processing
 
@@ -122,7 +123,19 @@ class MP4player:
 
         self.last_vertex = None
 
+        project = QgsProject.instance()
+        project.crsChanged.connect(self.changecrs)
 
+
+        self.transformcontext =  project.transformContext()
+
+        self.projectcrs = project.crs()
+
+
+    def changecrs(self):
+
+        project = QgsProject.instance()
+        self.projectcrs = project.crs()
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -331,16 +344,28 @@ class MP4player:
             self.dlg.dateTimeComboBox.setFilters(QgsFieldProxyModel.DateTime) 
 
         if self.loglayer is not None:
-            self.dlg.logLayerComboBox.setLayer(self.loglayer)
+
+            try:
+
+                self.dlg.logLayerComboBox.setLayer(self.loglayer)
+            except:
+                self.loglayer = None
 
             #self.configdlg.mMapLayerHenjyo.setLayer(self.marklayer )
 
         if self.timefield  is not None:
-            self.timefield = self.dlg.dateTimeComboBox.setField( self.timefield  )
+            try:
+                self.dlg.dateTimeComboBox.setField( self.timefield  )
+            except:
+                self.timefield = None
+      
             #print(" log1")
 
         if self.mp4layer is not None:
-            self.dlg.mp4LayerComboBox.setLayer(self.mp4layer) 
+            try:
+                self.dlg.mp4LayerComboBox.setLayer(self.mp4layer) 
+            except:
+                self.mp4layer = None
         
         # show the dialog
         self.dlg.show()
@@ -467,7 +492,15 @@ class MP4player:
         self.last_vertex.setIconSize(20)
         #self.last_vertex.setIconType(QgsVertexMarker.ICON_X)
         self.last_vertex.setPenWidth(3)
-        self.last_vertex.setCenter(QgsPointXY(self.lastx,self.lasty))
+
+        crsDest =  self.projectcrs
+        transformContext = self.transformcontext
+
+        crsSrc = QgsCoordinateReferenceSystem("EPSG:4326")  
+        xform = QgsCoordinateTransform(crsSrc, crsDest, transformContext)
+
+        pt1 = xform.transform(QgsPointXY(self.lastx,self.lasty))
+        self.last_vertex.setCenter(QgsPointXY(pt1 ))
 
 
         
@@ -500,7 +533,7 @@ class MP4player:
         #print( "set point log")
 
 
-        inputstr = 'C:\\work\\gpx2\\TrackLog_2021_06_11.gpkg|layername=TrackLog_2021_06_11'
+        #inputstr = 'C:\\work\\gpx2\\TrackLog_2021_06_11.gpkg|layername=TrackLog_2021_06_11'
         expstr =  '(\"DateTimeG\" <= to_datetime( \'2021/06/11 01:19:13\', \'yyyy/MM/dd HH:mm:ss\')) and (\"DateTimeG\" >= to_datetime( \'2021/06/11 01:17:50\', \'yyyy/MM/dd HH:mm:ss\'))'
         expstr =  '\"DateTimeG\" <= to_datetime( \'2021/06/11 01:19:13\', \'yyyy/MM/dd HH:mm:ss\')'
         # and (\"DateTimeG\" >= to_datetime( \'2021/06/11 01:17:50\', \'yyyy/MM/dd HH:mm:ss\'))'
